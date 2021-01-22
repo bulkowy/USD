@@ -6,7 +6,7 @@ import torch
 def get_args():
     parser = argparse.ArgumentParser(description='RL')
     parser.add_argument(
-        '--lr', type=float, default=7e-4, help='learning rate (default: 7e-4)')
+        '--lr', type=float, default=0.0003, help='learning rate (default: 7e-4)')
     parser.add_argument(
         '--eps',
         type=float,
@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument(
         '--entropy-coef',
         type=float,
-        default=0.01,
+        default=0.00,
         help='entropy term coefficient (default: 0.01)')
     parser.add_argument(
         '--value-loss-coef',
@@ -47,17 +47,17 @@ def get_args():
     parser.add_argument(
         '--num-processes',
         type=int,
-        default=16,
+        default=1,
         help='how many training CPU processes to use (default: 16)')
     parser.add_argument(
         '--num-steps',
         type=int,
-        default=5,
+        default=2048,
         help='number of forward steps in A2C (default: 5)')
     parser.add_argument(
         '--ppo-epoch',
         type=int,
-        default=4,
+        default=10,
         help='number of ppo epochs (default: 4)')
     parser.add_argument(
         '--num-mini-batch',
@@ -72,12 +72,12 @@ def get_args():
     parser.add_argument(
         '--log-interval',
         type=int,
-        default=10,
+        default=1,
         help='log interval, one log per n updates (default: 10)')
     parser.add_argument(
         '--render-interval',
         type=int,
-        default=100,
+        default=20,
         help='render interval, one render per n updates (default: 10)')
     parser.add_argument(
         '--save-interval',
@@ -87,7 +87,7 @@ def get_args():
     parser.add_argument(
         '--num-env-steps',
         type=int,
-        default=10e6,
+        default=3000000,
         help='number of environment steps to train (default: 10e6)')
     parser.add_argument(
         '--env-name',

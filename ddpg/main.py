@@ -3,16 +3,16 @@ from envs import create_env
 from ddpg import DDPG
 
 # -- CONFIG
-EPISODE_NUM=20000
+EPISODE_NUM=2000
 INTERIM_TEST_NUM=10
 
 #    -- TEST
-IS_TEST = True
+IS_TEST = False
 LOAD_FROM = "checkpoint/Reacher-v2/_ep_2000.pt"
 
 #    -- LOG
 RENDER = True
-LOG = False
+LOG = True
 
 #    -- NN DIMS
 HIDDEN_DIMS_ACTOR = [256, 256]

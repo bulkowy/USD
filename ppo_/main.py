@@ -17,9 +17,12 @@ from args import get_args
 
 from mujoco_py import GlfwContext
 import cv2
-GlfwContext(offscreen=True)
 
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
+OFFSCREEN = False
+
+if OFFSCREEN:
+    GlfwContext(offscreen=True)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
 
 def get_vec_normalize(venv):
@@ -84,10 +87,11 @@ def main():
     num_updates = int(
         args.num_env_steps) // args.num_steps // args.num_processes
     for j in range(num_updates):
-        if j % args.render_interval == 0:
-            VideoWriter = cv2.VideoWriter(args.env_name + str(j//args.render_interval) + ".avi", fourcc, 50.0, (250, 250))
-        elif j == num_updates - 1:
-            VideoWriter = cv2.VideoWriter(args.env_name + "final.avi", fourcc, 50.0, (250, 250))
+        if OFFSCREEN:
+            if j % args.render_interval == 0:
+                VideoWriter = cv2.VideoWriter(args.env_name + str(j//args.render_interval) + ".avi", fourcc, 50.0, (250, 250))
+            elif j == num_updates - 1:
+                VideoWriter = cv2.VideoWriter(args.env_name + "final.avi", fourcc, 50.0, (250, 250))
         update_linear_schedule(
             agent.optimizer, j, num_updates, args.lr)
 
@@ -100,11 +104,13 @@ def main():
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
             if (j % args.render_interval == 0 and len(episode_rewards) > 1) or j == num_updates - 1:
-                
-                I = envs.render(mode='rgb_array')
-                I = cv2.cvtColor(I, cv2.COLOR_RGB2BGR)
-                I = cv2.resize(I, (250, 250))
-                VideoWriter.write(I)
+                if OFFSCREEN:
+                    I = envs.render(mode='rgb_array')
+                    I = cv2.cvtColor(I, cv2.COLOR_RGB2BGR)
+                    I = cv2.resize(I, (250, 250))
+                    VideoWriter.write(I)
+                else:
+                    envs.render()
 
             for info in infos:
                 if 'episode' in info.keys():
@@ -118,7 +124,8 @@ def main():
                  for info in infos])
             rollouts.insert(obs, action,
                             action_log_prob, value, reward, masks, bad_masks)
-        VideoWriter.release()
+        if OFFSCREEN:
+            VideoWriter.release()
 
         with torch.no_grad():
             next_value = agent.actor_critic.get_value(
@@ -140,17 +147,10 @@ def main():
             except OSError:
                 pass
 
-            #torch.save([
-            #    actor_critic,
-            #    getattr(get_vec_normalize(envs), 'ob_rms', None)
-            #], os.path.join(save_path, args.env_name + ".pt"))
-
-            #torch.save(agent.actor_critic.state_dict(), 
-            #os.path.join(save_path, args.env_name + ".pt"))
-
-            #torch.save(getattr(get_vec_normalize(envs), 'ob_rms', None),
-            #os.path.join(save_path, args.env_name + ".vec"))
-            #print('SAVED!')
+            torch.save([
+                actor_critic,
+                getattr(get_vec_normalize(envs), 'ob_rms', None)
+            ], os.path.join(save_path, args.env_name + f'_{j}_' + ".pt"))
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps

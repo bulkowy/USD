@@ -187,9 +187,10 @@ class DDPG:
         # logger
         if self.log:
             self.set_wandb()
-            # wandb.watch([self.actor, self.critic], log="parameters")
+            wandb.watch([self.learner.actor, self.learner.critic], log="parameters")
         
-        VideoWriter = cv2.VideoWriter(self.env_name + ".avi", fourcc, 50.0, (250, 250))
+        if OFFSCREEN:
+            VideoWriter = cv2.VideoWriter(self.env_name + ".avi", fourcc, 50.0, (250, 250))
 
         
 

@@ -9,6 +9,7 @@ import copy
 from torch.distributions import MultivariateNormal
 import os
 import time
+import wandb
 sigma = 0.3
 
 # config
@@ -117,7 +118,7 @@ class Agent:
         self.dqn_l = NAFdqn(state_d, action_d, layer_d)
         self.dqn_t = NAFdqn(state_d, action_d, layer_d)
 
-        #wandb.watch(self.dqn_l)
+        wandb.watch(self.dqn_l)
         self.opt = Adam(self.dqn_l.parameters(), lr=lr)
 
         self.memory = deque(maxlen=buffer_size)
@@ -242,6 +243,8 @@ if __name__=='__main__':
     state_d = env.observation_space.shape[0]
     scores = deque(maxlen=100)
     red_sigma = (2*sigma)/EPISODES
+    wandb.init(project='Reacher-v2DQN',
+                   name=f'DQN/Reacher-v2')
 
     agent = Agent(
         state_d=state_d,
@@ -296,12 +299,15 @@ if __name__=='__main__':
                     scores.append(sum_reward)
                     print(
                         "[INFO] episode %d, total score: %d\n"
-                        "total loss: %f actor_loss: %.3f critic_loss: %.3f (spent %.6f sec/step)\n"
                         % (
                             ep,
                             sum_reward,
-                            avg_time_cost,
                         )  # actor loss  # critic loss
+                    )
+                    wandb.log(
+                        {
+                            "score": sum_reward,
+                        }
                     )
             
             if ep % 100 == 0 or ep == EPISODES:

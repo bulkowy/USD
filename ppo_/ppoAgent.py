@@ -4,6 +4,7 @@ from torch.optim import Adam
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 import gym
 import numpy as np
+import os
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 FC1_D = 128
@@ -75,6 +76,7 @@ class Memory:
         if mini_batch_size is None:
             mini_batch_size = batch_size // num_mini_batch
 
+
         sampler = BatchSampler(
             SubsetRandomSampler(range(batch_size)),
             mini_batch_size,
@@ -122,6 +124,28 @@ class Agent(object):
         self.use_clipped_value_loss = use_clipped_value_loss
 
         self.optimizer = torch.optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
+
+    # def save_model(self, path, episode):
+    #     params = {
+    #         "actor_critic": self.actor_critic.state_dict(),
+    #         "opt": self.optimizer.state_dict()
+    #     }
+    #     os.makedirs(path, exist_ok=True)
+
+    #     path = os.path.join(path, + "_ep_" + str(episode) + ".pt")
+    #     torch.save(params, path)
+    #     print('saved model!')
+
+    # def load_model(self, path):
+    #     if not os.path.exists(path):
+    #         raise Exception(
+    #             f"[ERROR] the input path does not exist. Wrong path: {path}"
+    #         )
+
+    #     params = torch.load(path)
+    #     self.actor_critic.load_state_dict(params["actor_critic"])
+    #     self.optimizer(params["opt"])
+    #     print('loaded model!')
 
     def update(self, rollouts):
         advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]
