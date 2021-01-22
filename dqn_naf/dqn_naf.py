@@ -28,7 +28,6 @@ ENV_NAME = 'Reacher-v2'
 EPISODES = 2000
 RENDER = False
 RENDER_EVERY = 100
-CREATE_AVI = False
 LOG_WANDB = True
 
 # -- TEST
