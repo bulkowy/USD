@@ -210,9 +210,6 @@ class DDPG:
             t_begin = time.time()
 
             while not done:
-                #if self.render:
-                #    self.env.render()
-
                 if self.i_episode % 20 == 0 or self.i_episode == self.episode_num:
                     if OFFSCREEN:
                         I = self.env.render(mode='rgb_array')

@@ -1,10 +1,13 @@
 import gym
 from envs import create_env
 from ddpg import DDPG
+import reacheredited
 
 # -- CONFIG
-EPISODE_NUM=2000
-INTERIM_TEST_NUM=10
+ENV_NAME = 'Reacher-v2'
+#ENV_NAME = 'reachere-v2'
+EPISODE_NUM = 2000
+INTERIM_TEST_NUM = 10
 
 #    -- TEST
 IS_TEST = False
@@ -12,7 +15,7 @@ LOAD_FROM = "checkpoint/Reacher-v2/_ep_2000.pt"
 
 #    -- LOG
 RENDER = True
-LOG = True
+LOG = False
 
 #    -- NN DIMS
 HIDDEN_DIMS_ACTOR = [256, 256]
@@ -33,7 +36,7 @@ NOISE_THETA = 0.0
 
 
 def main():
-    env_name = "Reacher-v2"
+    env_name = ENV_NAME
     env = create_env(env_name)
 
     agent = DDPG(

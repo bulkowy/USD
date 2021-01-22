@@ -10,30 +10,38 @@ from torch.distributions import MultivariateNormal
 import os
 import time
 import wandb
-sigma = 0.3
-
-# config
-LAYER_D = 256
-BATCH_SIZE = 256
-LR = 1e-3
-BUFFER_SIZE = 100000
-EPISODES = 4000
-CREATE_AVI = False
-RENDER_EVERY = 100
-IS_TEST = False
-RENDER_IN_TEST = True
-LOAD_PATH = 'checkpoint/Reacher-v2/_ep_1800.pt'
 
 from mujoco_py import GlfwContext
 import cv2
 
-OFFSCREEN = True
+sigma = 0.3
+
+# -- CONFIG
+ENV_NAME = 'Reacher-v2'
+# ENV_NAME = 'reachere-v2'
+EPISODES = 4000
+RENDER_EVERY = 100
+CREATE_AVI = False
+
+# -- TEST
+IS_TEST = False
+RENDER_IN_TEST = True
+LOAD_PATH = 'checkpoint/Reacher-v2/_ep_1800.pt'
+
+# -- NN
+LAYER_D = 256
+
+# -- HYPERPARAMETERS
+BATCH_SIZE = 256
+LR = 1e-3
+BUFFER_SIZE = 100000
+
+OFFSCREEN = False
 
 if OFFSCREEN:
     GlfwContext(offscreen=True)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
 class NAFdqn(nn.Module):
     def __init__(self, input_d, output_d, layer_d=256):
@@ -113,12 +121,10 @@ class Agent:
         self.update_every = 4
         self.episodes = episodes
 
-        self.checkpoint_path = f"./checkpoint/Reacher-v2/"
+        self.checkpoint_path = f"./checkpoint/{ENV_NAME}/"
 
         self.dqn_l = NAFdqn(state_d, action_d, layer_d)
         self.dqn_t = NAFdqn(state_d, action_d, layer_d)
-
-        wandb.watch(self.dqn_l)
         self.opt = Adam(self.dqn_l.parameters(), lr=lr)
 
         self.memory = deque(maxlen=buffer_size)
@@ -238,13 +244,13 @@ class Agent:
                 
 
 if __name__=='__main__':
-    env = gym.make('Reacher-v2')
+    env = gym.make(ENV_NAME)
     action_d = env.action_space.shape[0]
     state_d = env.observation_space.shape[0]
     scores = deque(maxlen=100)
     red_sigma = (2*sigma)/EPISODES
-    wandb.init(project='Reacher-v2DQN',
-                   name=f'DQN/Reacher-v2')
+    wandb.init(project=f'{ENV_NAME}DQN',
+                   name=f'DQN/{ENV_NAME}')
 
     agent = Agent(
         state_d=state_d,
@@ -255,19 +261,21 @@ if __name__=='__main__':
         lr=LR, 
         episodes=EPISODES
     )
+    wandb.watch([agent.dqn_l], log='parameters')
     if IS_TEST:
         agent.load_params(LOAD_PATH)
         agent.test(env)
     
     else:
-        VideoWriter = cv2.VideoWriter('Reacher-v2' + ".avi", fourcc, 50.0, (250, 250))
+        if OFFSCREEN:
+            VideoWriter = cv2.VideoWriter(ENV_NAME + ".avi", fourcc, 50.0, (250, 250))
 
         for ep in range(1, EPISODES+1):
             if OFFSCREEN:
                 if ep > 100 and ep % 20 == 0:
-                    VideoWriter = cv2.VideoWriter('Reacher-v2' + str(ep//20) + ".avi", fourcc, 50.0, (250, 250))
+                    VideoWriter = cv2.VideoWriter(ENV_NAME + str(ep//20) + ".avi", fourcc, 50.0, (250, 250))
                 elif ep == EPISODES+1:
-                    VideoWriter = cv2.VideoWriter('Reacher-v2' + "final.avi", fourcc, 50.0, (250, 250))
+                    VideoWriter = cv2.VideoWriter(ENV_NAME + "final.avi", fourcc, 50.0, (250, 250))
         
             sum_reward = 0
             done = False

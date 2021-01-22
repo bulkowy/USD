@@ -101,6 +101,7 @@ class Learner:
         self.gamma = gamma
         self.tau = tau
         self.load_from = load_from
+        self.is_test = is_test
 
         if not is_test:
             self.checkpoint_path = f"./checkpoint/{env_name}/"
@@ -131,7 +132,7 @@ class Learner:
             weight_decay=self.weight_decay
         )
 
-        if self.load_from is not None:
+        if self.load_from is not None and self.is_test:
             self.load_params(self.load_from)
 
     def update_model(self, experience):

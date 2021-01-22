@@ -13,10 +13,47 @@ import torch.optim as optim
 from ac import Policy
 from envs import make_vec_envs, VecNormalize
 from ppoAgent import Memory, Agent
-from args import get_args
+import wandb
+import reacheredited
 
 from mujoco_py import GlfwContext
 import cv2
+
+
+lr_ = [1e-3, 3e-4, 1e-4]
+epsilon_ = [1e-4, 5e-5, 1e-5]
+gamma_ = [0.95, 0.97, 0.99]
+gae_lambda_ = [0.93, 0.95, 0.97]
+num_mini_batch_ = [32, 64, 128]
+
+
+LR = 3e-4
+EPSILON = 1e-5
+GAMMA = 0.99
+GAE_LAMBDA = 0.95
+NUM_MINI_BATCH = 32
+
+TUNING = True
+
+# -- CONFIG
+ENV_NAME = 'Reacher-v2'
+# ENV_NAME = 'reachere-v2'
+ENTROPY = 0.00
+SEED = 1000
+VALUE_LOSS_COEF = 0.5
+MAX_GRAD_NORM = 0.5
+NUM_PROCESSES = 1
+NUM_STEPS = 2048
+PPO_EPOCH = 10
+NUM_MINI_BATCH = 32
+CLIP_PARAM = 0.2
+LOG_INTERVAL = 1
+RENDER_INTERVAL = 20
+RENDER = False
+ENV_STEPS = 120 * NUM_STEPS 
+LOG_DIR = './tmp/gym'
+LOG_WANDB = True
+
 
 OFFSCREEN = False
 
@@ -40,41 +77,45 @@ def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr):
         param_group['lr'] = lr
 
 def main():
-    args = get_args()
+    if LOG_WANDB:
+        if TUNING:
+            run = wandb.init(project=f'{ENV_NAME}_PPO-HP_SEARCH',
+                    name=f'PPO/{ENV_NAME}-{LR}-{EPSILON}-{GAMMA}-{GAE_LAMBDA}-{NUM_MINI_BATCH}', reinit=True)
+        else:
+            wandb.init(project=f'{ENV_NAME}_PPO',
+                    name=f'PPO/{ENV_NAME}')
 
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
 
-    if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
-
-    log_dir = os.path.expanduser(args.log_dir)
+    log_dir = os.path.expanduser(LOG_DIR)
     eval_log_dir = log_dir + "_eval"
 
     torch.set_num_threads(1)
-    device = torch.device("cuda:0" if args.cuda else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
-                         args.gamma, args.log_dir, device, False)
+    envs = make_vec_envs(ENV_NAME, SEED, NUM_PROCESSES,
+                         GAMMA, LOG_DIR, device, False)
 
     actor_critic = Policy(
         envs.observation_space.shape,
         envs.action_space)
     actor_critic.to(device)
 
+    #wandb.watch([actor_critic.base.actor, actor_critic.base.critic], log='parameters')
+
     agent = Agent(
         actor_critic,
-        args.clip_param,
-        args.ppo_epoch,
-        args.num_mini_batch,
-        args.value_loss_coef,
-        args.entropy_coef,
-        lr=args.lr,
-        eps=args.eps,
-        max_grad_norm=args.max_grad_norm)
+        CLIP_PARAM,
+        PPO_EPOCH,
+        NUM_MINI_BATCH,
+        VALUE_LOSS_COEF,
+        ENTROPY,
+        lr=LR,
+        eps=EPSILON,
+        max_grad_norm=MAX_GRAD_NORM)
 
-    rollouts = Memory(args.num_steps, args.num_processes,
+    rollouts = Memory(NUM_STEPS, NUM_PROCESSES,
                               envs.observation_space.shape, envs.action_space)
 
     obs = envs.reset()
@@ -85,17 +126,17 @@ def main():
 
     start = time.time()
     num_updates = int(
-        args.num_env_steps) // args.num_steps // args.num_processes
+        ENV_STEPS) // NUM_STEPS // NUM_PROCESSES
     for j in range(num_updates):
         if OFFSCREEN:
-            if j % args.render_interval == 0:
-                VideoWriter = cv2.VideoWriter(args.env_name + str(j//args.render_interval) + ".avi", fourcc, 50.0, (250, 250))
+            if j % RENDER_INTERVAL == 0:
+                VideoWriter = cv2.VideoWriter(ENV_NAME + str(j//RENDER_INTERVAL) + ".avi", fourcc, 50.0, (250, 250))
             elif j == num_updates - 1:
-                VideoWriter = cv2.VideoWriter(args.env_name + "final.avi", fourcc, 50.0, (250, 250))
+                VideoWriter = cv2.VideoWriter(ENV_NAME + "final.avi", fourcc, 50.0, (250, 250))
         update_linear_schedule(
-            agent.optimizer, j, num_updates, args.lr)
+            agent.optimizer, j, num_updates, LR)
 
-        for step in range(args.num_steps):
+        for step in range(NUM_STEPS):
             # Sample actions
             with torch.no_grad():
                 value, action, action_log_prob = agent.actor_critic.act(
@@ -103,7 +144,7 @@ def main():
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
-            if (j % args.render_interval == 0 and len(episode_rewards) > 1) or j == num_updates - 1:
+            if RENDER and (j % RENDER_INTERVAL == 0 and len(episode_rewards) > 1) or j == num_updates - 1:
                 if OFFSCREEN:
                     I = envs.render(mode='rgb_array')
                     I = cv2.cvtColor(I, cv2.COLOR_RGB2BGR)
@@ -131,29 +172,15 @@ def main():
             next_value = agent.actor_critic.get_value(
                 rollouts.states[-1], rollouts.masks[-1]).detach()
 
-        rollouts.compute_returns(next_value, args.gamma,
-                                 args.gae_lambda)
+        rollouts.compute_returns(next_value, GAMMA,
+                                 GAE_LAMBDA)
 
         value_loss, action_loss, dist_entropy = agent.update(rollouts)
 
         rollouts.after_update()
 
-        # save for every interval-th episode or for the last epoch
-        if (j % args.save_interval == 0
-                or j == num_updates - 1) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir, 'PPO')
-            try:
-                os.makedirs(save_path)
-            except OSError:
-                pass
-
-            torch.save([
-                actor_critic,
-                getattr(get_vec_normalize(envs), 'ob_rms', None)
-            ], os.path.join(save_path, args.env_name + f'_{j}_' + ".pt"))
-
-        if j % args.log_interval == 0 and len(episode_rewards) > 1:
-            total_num_steps = (j + 1) * args.num_processes * args.num_steps
+        if j % LOG_INTERVAL == 0 and len(episode_rewards) > 1:
+            total_num_steps = (j + 1) * NUM_PROCESSES * NUM_STEPS
             end = time.time()
             print(
                 "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n"
@@ -163,6 +190,31 @@ def main():
                         np.median(episode_rewards), np.min(episode_rewards),
                         np.max(episode_rewards), dist_entropy, value_loss,
                         action_loss))
+        if LOG_WANDB:
+            wandb.log({
+                "median": np.median(episode_rewards), 
+                "min": np.min(episode_rewards),
+                "max": np.max(episode_rewards),
+                "action_loss": action_loss,
+                "value_loss": value_loss
+            })
 
+    if TUNING:
+        run.finish()    
+    
 if __name__ == "__main__":
-    main()
+    if TUNING:
+        #lr_ = [1e-3, 3e-4, 1e-4]
+        # epsilon_ = [1e-4, 5e-5, 1e-5]
+        # gamma_ = [0.95, 0.97, 0.99]
+        # gae_lambda_ = [0.93, 0.95, 0.97]
+        # num_mini_batch = [32, 64, 128]
+        for LR in lr_:
+            for EPSILON in epsilon_:
+                for GAMMA in gamma_:
+                    for GAE_LAMBDA in gae_lambda_:
+                        for NUM_MINI_BATCH in num_mini_batch_:
+                            main()
+
+    else:
+        main()

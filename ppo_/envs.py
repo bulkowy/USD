@@ -19,6 +19,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
             env = TimeLimitMask(env)
 
         if log_dir is not None:
+            os.makedirs(log_dir, exist_ok=True)
             env = Monitor(
                 env,
                 os.path.join(log_dir, str(rank)),
