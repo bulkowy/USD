@@ -49,13 +49,13 @@ NUM_MINI_BATCH = 32
 CLIP_PARAM = 0.2
 LOG_INTERVAL = 1
 RENDER_INTERVAL = 20
-RENDER = False
+RENDER = True
 ENV_STEPS = 120 * NUM_STEPS 
 LOG_DIR = './tmp/gym'
 LOG_WANDB = True
 
 
-OFFSCREEN = False
+OFFSCREEN = True
 
 if OFFSCREEN:
     GlfwContext(offscreen=True)
@@ -128,11 +128,16 @@ def main():
     num_updates = int(
         ENV_STEPS) // NUM_STEPS // NUM_PROCESSES
     for j in range(num_updates):
-        if OFFSCREEN:
+        if OFFSCREEN and RENDER:
+            if TUNING:
+                fn = f'{ENV_NAME}-{LR}-{EPSILON}-{GAMMA}-{GAE_LAMBDA}-{NUM_MINI_BATCH}'
+            else:
+                fn = f'{ENV_NAME}'
+
             if j % RENDER_INTERVAL == 0:
-                VideoWriter = cv2.VideoWriter(ENV_NAME + str(j//RENDER_INTERVAL) + ".avi", fourcc, 50.0, (250, 250))
+                VideoWriter = cv2.VideoWriter(fn + str(j//RENDER_INTERVAL) + ".avi", fourcc, 50.0, (250, 250))
             elif j == num_updates - 1:
-                VideoWriter = cv2.VideoWriter(ENV_NAME + "final.avi", fourcc, 50.0, (250, 250))
+                VideoWriter = cv2.VideoWriter(fn + "final.avi", fourcc, 50.0, (250, 250))
         update_linear_schedule(
             agent.optimizer, j, num_updates, LR)
 
@@ -165,7 +170,7 @@ def main():
                  for info in infos])
             rollouts.insert(obs, action,
                             action_log_prob, value, reward, masks, bad_masks)
-        if OFFSCREEN:
+        if OFFSCREEN and RENDER:
             VideoWriter.release()
 
         with torch.no_grad():
@@ -199,16 +204,11 @@ def main():
                 "value_loss": value_loss
             })
 
-    if TUNING:
+    if LOG_WANDB and TUNING:
         run.finish()    
     
 if __name__ == "__main__":
     if TUNING:
-        #lr_ = [1e-3, 3e-4, 1e-4]
-        # epsilon_ = [1e-4, 5e-5, 1e-5]
-        # gamma_ = [0.95, 0.97, 0.99]
-        # gae_lambda_ = [0.93, 0.95, 0.97]
-        # num_mini_batch = [32, 64, 128]
         for LR in lr_:
             for EPSILON in epsilon_:
                 for GAMMA in gamma_:

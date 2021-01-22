@@ -10,18 +10,26 @@ from torch.distributions import MultivariateNormal
 import os
 import time
 import wandb
+import reacheredited
 
 from mujoco_py import GlfwContext
 import cv2
 
-sigma = 0.3
+
+lr_ = [1e-3, 3e-4, 1e-4]
+layer_d_ = [128, 256]
+batch_size_ = [64, 128, 256, 512]
+
+TUNING = True
 
 # -- CONFIG
 ENV_NAME = 'Reacher-v2'
 # ENV_NAME = 'reachere-v2'
-EPISODES = 4000
+EPISODES = 2000
+RENDER = False
 RENDER_EVERY = 100
 CREATE_AVI = False
+LOG_WANDB = True
 
 # -- TEST
 IS_TEST = False
@@ -35,6 +43,8 @@ LAYER_D = 256
 BATCH_SIZE = 256
 LR = 1e-3
 BUFFER_SIZE = 100000
+
+sigma = 0.3
 
 OFFSCREEN = False
 
@@ -243,14 +253,22 @@ class Agent:
 
                 
 
-if __name__=='__main__':
+def main():
+    global sigma
     env = gym.make(ENV_NAME)
     action_d = env.action_space.shape[0]
     state_d = env.observation_space.shape[0]
     scores = deque(maxlen=100)
     red_sigma = (2*sigma)/EPISODES
-    wandb.init(project=f'{ENV_NAME}DQN',
-                   name=f'DQN/{ENV_NAME}')
+
+
+    if LOG_WANDB:
+        if TUNING:
+            run = wandb.init(project=f'{ENV_NAME}_DQN-HP_SEARCH',
+                    name=f'DQN/{ENV_NAME}-{LR}-{LAYER_D}-{BATCH_SIZE}', reinit=True)
+        else:
+            wandb.init(project=f'{ENV_NAME}_DQN',
+                    name=f'DQN/{ENV_NAME}')
 
     agent = Agent(
         state_d=state_d,
@@ -267,15 +285,19 @@ if __name__=='__main__':
         agent.test(env)
     
     else:
-        if OFFSCREEN:
+        if OFFSCREEN and RENDER:
             VideoWriter = cv2.VideoWriter(ENV_NAME + ".avi", fourcc, 50.0, (250, 250))
 
         for ep in range(1, EPISODES+1):
-            if OFFSCREEN:
-                if ep > 100 and ep % 20 == 0:
-                    VideoWriter = cv2.VideoWriter(ENV_NAME + str(ep//20) + ".avi", fourcc, 50.0, (250, 250))
+            if OFFSCREEN and RENDER:
+                if TUNING:
+                    fn = f'{ENV_NAME}-{LR}-{LAYER_D}-{BATCH_SIZE}'
+                else:
+                    fn = f'{ENV_NAME}'
+                if ep > 100 and ep % RENDER_EVERY == 0:
+                    VideoWriter = cv2.VideoWriter(fn + str(ep//20) + ".avi", fourcc, 50.0, (250, 250))
                 elif ep == EPISODES+1:
-                    VideoWriter = cv2.VideoWriter(ENV_NAME + "final.avi", fourcc, 50.0, (250, 250))
+                    VideoWriter = cv2.VideoWriter(fn + "final.avi", fourcc, 50.0, (250, 250))
         
             sum_reward = 0
             done = False
@@ -294,7 +316,7 @@ if __name__=='__main__':
                 state = next_state
                 sum_reward += reward
 
-                if (ep > 100 and ep % 20 == 0) or ep == EPISODES:
+                if RENDER and ((ep > 100 and ep % RENDER_EVERY == 0) or ep == EPISODES):
                     if OFFSCREEN:
                         I = env.render(mode='rgb_array')
                         I = cv2.cvtColor(I, cv2.COLOR_RGB2BGR)
@@ -312,15 +334,29 @@ if __name__=='__main__':
                             sum_reward,
                         )  # actor loss  # critic loss
                     )
-                    wandb.log(
-                        {
-                            "score": sum_reward,
-                        }
-                    )
+                    if LOG_WANDB:
+                        wandb.log(
+                            {
+                                "score": sum_reward,
+                            }
+                        )
             
             if ep % 100 == 0 or ep == EPISODES:
                 agent.save_params(ep)
             
-            if OFFSCREEN:
+            if OFFSCREEN and RENDER:
                 VideoWriter.release()
+    
+    if LOG_WANDB and TUNING:
+        run.finish()
 
+
+
+if __name__=='__main__':
+    if TUNING:
+        for LR in lr_:
+            for LAYER_D in layer_d_:
+                for BATCH_SIZE in batch_size_:
+                    main()
+    else:
+        main()
