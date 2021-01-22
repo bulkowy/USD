@@ -3,10 +3,17 @@ from envs import create_env
 from ddpg import DDPG
 import reacheredited
 
+lr_ = [10**j for j in range(-6, -3+1)]
+weight_decay_ = [10**j for j in range(-7, -5+1)]
+gamma_ = [10**-2*j for j in range(99, 99+1)]
+batch_size_ = [2**j for j in range(5, 8+1)]
+
+TUNING = True
+
 # -- CONFIG
 ENV_NAME = 'Reacher-v2'
 #ENV_NAME = 'reachere-v2'
-EPISODE_NUM = 2000
+EPISODE_NUM = 100
 INTERIM_TEST_NUM = 10
 
 #    -- TEST
@@ -15,7 +22,7 @@ LOAD_FROM = "checkpoint/Reacher-v2/_ep_2000.pt"
 
 #    -- LOG
 RENDER = True
-LOG = False
+LOG = True
 
 #    -- NN DIMS
 HIDDEN_DIMS_ACTOR = [256, 256]
@@ -60,7 +67,8 @@ def main():
         batch_size=BATCH_SIZE,
         initial_random_action=INITIAL_RANDOM_ACTION,
         noise_sigma=NOISE_SIGMA,
-        noise_theta=NOISE_THETA
+        noise_theta=NOISE_THETA,
+        tuning=TUNING
     )
 
     if IS_TEST:
@@ -69,4 +77,11 @@ def main():
         agent.train()
 
 if __name__ == "__main__":
-    main()
+    if TUNING:
+        for LR in lr_:
+            for WEIGHT_DECAY in weight_decay_:
+                for GAMMA in gamma_:
+                    for BATCH_SIZE in batch_size_:
+                        main()
+    else:
+        main()

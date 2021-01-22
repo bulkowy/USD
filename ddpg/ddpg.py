@@ -11,7 +11,7 @@ from memory import ReplayBuffer
 from mujoco_py import GlfwContext
 import cv2
 
-OFFSCREEN = False
+OFFSCREEN = True
 
 if OFFSCREEN:
     GlfwContext(offscreen=True)
@@ -55,7 +55,8 @@ class DDPG:
             batch_size=128,
             initial_random_action=10000,
             noise_sigma=0.0,
-            noise_theta=0.0):
+            noise_theta=0.0,
+            tuning=False):
 
         self.env = env
         self.env_name = env_name
@@ -73,6 +74,7 @@ class DDPG:
 
         self.render = render
         self.log = log
+        self.tuning = tuning
 
         self.hidden_dims_a = hidden_dims_a
         self.hidden_dims_c = hidden_dims_c
@@ -171,15 +173,14 @@ class DDPG:
         )
 
         if self.log:
-            wandb.log(
-                {
+            log_value = {
                     "score": score,
                     "total loss": total_loss,
                     "actor loss": loss[0],
                     "critic loss": loss[1],
                     "time per each step": avg_time_cost,
                 }
-            )
+            wandb.log(log_value)
 
     def train(self):
         """Train the agent."""
@@ -209,7 +210,7 @@ class DDPG:
             t_begin = time.time()
 
             while not done:
-                if self.i_episode % 20 == 0 or self.i_episode == self.episode_num:
+                if self.render and (self.i_episode % 200 == 0 or self.i_episode == self.episode_num):
                     if OFFSCREEN:
                         I = self.env.render(mode='rgb_array')
                         I = cv2.cvtColor(I, cv2.COLOR_RGB2BGR)
@@ -232,7 +233,7 @@ class DDPG:
                 state = next_state
                 score += reward
 
-            if OFFSCREEN:
+            if self.render and OFFSCREEN:
                 VideoWriter.release()
 
             t_end = time.time()
@@ -249,14 +250,23 @@ class DDPG:
                 self.learner.save_params(self.i_episode)
                 self.interim_test()
 
+        if self.tuning and self.log:
+            self.run.finish()
+
         # termination
         self.env.close()
         self.learner.save_params(self.i_episode)
         self.interim_test()
 
     def set_wandb(self):
-        wandb.init(project=self.env_name,
-                   name=f'DDPG/{self.env_name}')
+        if self.tuning:
+            self.run = wandb.init(
+                project=f'{self.env_name}_DDPG-HP_SEARCH',
+                name=f'DDPG/{self.env_name}-{self.lr}-{self.weight_decay}-{self.gamma}-{self.batch_size}', reinit=True
+            )
+        else:
+            wandb.init(project=f'{self.env_name}_DDPG',
+                name=f'DDPG/{self.env_name}')
     
     def interim_test(self):
         self.is_test = True
@@ -315,12 +325,4 @@ class DDPG:
                 "[INFO] test %d\tstep: %d\ttotal score: %d" % (i_episode, step, score)
             )
             score_list.append(score)
-
-        if self.log:
-            wandb.log(
-                {
-                    "avg test score": round(sum(score_list) / len(score_list), 2),
-                    "test total step": self.total_step,
-                }
-            )
 
