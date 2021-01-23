@@ -28,7 +28,7 @@ ENV_NAME = 'Reacher-v2'
 EPISODES = 2000
 RENDER = False
 RENDER_EVERY = 100
-LOG_WANDB = True
+LOG_WANDB = False
 
 # -- TEST
 IS_TEST = False
@@ -284,7 +284,8 @@ def main():
         lr=LR, 
         episodes=EPISODES
     )
-    wandb.watch([agent.dqn_l], log='parameters')
+    if LOG_WANDB:
+        wandb.watch([agent.dqn_l], log='parameters')
     if IS_TEST:
         agent.load_params(LOAD_PATH)
         agent.test(env)
