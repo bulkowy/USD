@@ -21,7 +21,7 @@ LOAD_FROM = "checkpoint/Reacher-v2/_ep_2000.pt"
 
 #    -- LOG
 RENDER = True
-LOG = True
+LOG = False
 
 #    -- NN DIMS
 HIDDEN_DIMS_ACTOR = [256, 256]

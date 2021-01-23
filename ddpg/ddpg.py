@@ -200,7 +200,7 @@ class DDPG:
                     fn = f'{self.env_name}-{self.lr}-{self.weight_decay}-{self.gamma}-{self.batch_size}'
                 else:
                     fn = f'{self.env_name}'
-                if self.i_episode % 200 == 0:
+                if self.i_episode % 100 == 0:
                     VideoWriter = cv2.VideoWriter(fn + str(self.i_episode//20) + ".avi", fourcc, 50.0, (250, 250))
                 elif self.i_episode == self.episode_num:
                     VideoWriter = cv2.VideoWriter(fn + "final.avi", fourcc, 50.0, (250, 250))
@@ -214,7 +214,7 @@ class DDPG:
             t_begin = time.time()
 
             while not done:
-                if self.render and (self.i_episode % 200 == 0 or self.i_episode == self.episode_num):
+                if self.render and (self.i_episode % 100 == 0 or self.i_episode == self.episode_num):
                     if OFFSCREEN:
                         I = self.env.render(mode='rgb_array')
                         I = cv2.cvtColor(I, cv2.COLOR_RGB2BGR)
@@ -315,8 +315,8 @@ class DDPG:
             step = 0
 
             while not done:
-                #if self.render:
-                #    self.env.render()
+                if self.render:
+                    self.env.render()
 
                 action = self.select_action(state)
                 next_state, reward, done, _ = self.step(action)

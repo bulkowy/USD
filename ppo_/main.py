@@ -49,7 +49,7 @@ RENDER_INTERVAL = 20
 RENDER = True
 ENV_STEPS = 90 * NUM_STEPS 
 LOG_DIR = './tmp/gym'       # don't chagne
-LOG_WANDB = True
+LOG_WANDB = False
 
 
 OFFSCREEN = True
