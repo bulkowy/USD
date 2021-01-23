@@ -3,17 +3,16 @@ from envs import create_env
 from ddpg import DDPG
 import reacheredited
 
-lr_ = [10**j for j in range(-6, -3+1)]
-weight_decay_ = [10**j for j in range(-7, -5+1)]
-gamma_ = [10**-2*j for j in range(99, 99+1)]
+lr_ = [0.001]
+weight_decay_ = [10**j for j in range(-6, -5+1)]
 batch_size_ = [2**j for j in range(5, 8+1)]
 
-TUNING = True
+TUNING = False
 
 # -- CONFIG
-ENV_NAME = 'Reacher-v2'
-#ENV_NAME = 'reachere-v2'
-EPISODE_NUM = 100
+#ENV_NAME = 'Reacher-v2'
+ENV_NAME = 'reachere-v2'
+EPISODE_NUM = 1600
 INTERIM_TEST_NUM = 10
 
 #    -- TEST
@@ -80,8 +79,7 @@ if __name__ == "__main__":
     if TUNING:
         for LR in lr_:
             for WEIGHT_DECAY in weight_decay_:
-                for GAMMA in gamma_:
-                    for BATCH_SIZE in batch_size_:
-                        main()
+                for BATCH_SIZE in batch_size_:
+                    main()
     else:
         main()

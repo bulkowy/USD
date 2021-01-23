@@ -1,0 +1,7 @@
+gym
+numpy
+torch
+stable-baselines3
+mujoco_py<2.0.0
+wandb
+opencv-python

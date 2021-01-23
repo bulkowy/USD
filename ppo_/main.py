@@ -20,10 +20,8 @@ from mujoco_py import GlfwContext
 import cv2
 
 
-lr_ = [1e-3, 3e-4, 1e-4]
+lr_ = [3e-4, 1e-4]
 epsilon_ = [1e-4, 5e-5, 1e-5]
-gamma_ = [0.95, 0.97, 0.99]
-gae_lambda_ = [0.93, 0.95, 0.97]
 num_mini_batch_ = [32, 64, 128]
 
 
@@ -33,25 +31,24 @@ GAMMA = 0.99
 GAE_LAMBDA = 0.95
 NUM_MINI_BATCH = 32
 
-TUNING = True
+TUNING = False
 
 # -- CONFIG
-ENV_NAME = 'Reacher-v2'
-# ENV_NAME = 'reachere-v2'
-ENTROPY = 0.00
+#ENV_NAME = 'Reacher-v2'
+ENV_NAME = 'reachere-v2'
+ENTROPY = 0.00              # don't change
 SEED = 1000
 VALUE_LOSS_COEF = 0.5
 MAX_GRAD_NORM = 0.5
-NUM_PROCESSES = 1
+NUM_PROCESSES = 1           # don't change
 NUM_STEPS = 2048
 PPO_EPOCH = 10
-NUM_MINI_BATCH = 32
 CLIP_PARAM = 0.2
 LOG_INTERVAL = 1
 RENDER_INTERVAL = 20
 RENDER = True
-ENV_STEPS = 120 * NUM_STEPS 
-LOG_DIR = './tmp/gym'
+ENV_STEPS = 90 * NUM_STEPS 
+LOG_DIR = './tmp/gym'       # don't chagne
 LOG_WANDB = True
 
 
@@ -211,10 +208,8 @@ if __name__ == "__main__":
     if TUNING:
         for LR in lr_:
             for EPSILON in epsilon_:
-                for GAMMA in gamma_:
-                    for GAE_LAMBDA in gae_lambda_:
-                        for NUM_MINI_BATCH in num_mini_batch_:
-                            main()
+                for NUM_MINI_BATCH in num_mini_batch_:
+                    main()
 
     else:
         main()

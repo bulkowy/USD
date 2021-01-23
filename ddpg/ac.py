@@ -144,6 +144,7 @@ class Learner:
         curr_returns = rewards + self.gamma * next_values * masks
         curr_returns = curr_returns.to(self.device)
 
+        # Calculate Q Value from critic
         values = self.critic(torch.cat((states, actions), dim=-1))
         critic_loss = F.mse_loss(values, curr_returns)
         self.critic_optim.zero_grad()
@@ -151,6 +152,7 @@ class Learner:
         clip_grad_norm_(self.critic.parameters(), self.gradient_clip_c)
         self.critic_optim.step()
 
+        # Calculate loss of actor based on Q Value
         actions = self.actor(states)
         actor_loss = -self.critic(torch.cat((states, actions), dim=-1)).mean()
         self.actor_optim.zero_grad()

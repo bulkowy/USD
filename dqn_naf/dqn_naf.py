@@ -20,7 +20,7 @@ lr_ = [1e-3, 3e-4, 1e-4]
 layer_d_ = [128, 256]
 batch_size_ = [64, 128, 256, 512]
 
-TUNING = True
+TUNING = False
 
 # -- CONFIG
 ENV_NAME = 'Reacher-v2'
@@ -43,7 +43,7 @@ BATCH_SIZE = 256
 LR = 1e-3
 BUFFER_SIZE = 100000
 
-sigma = 0.3
+sigma = 0.3 # don't change - value from NAF paper
 
 OFFSCREEN = False
 
@@ -78,12 +78,15 @@ class NAFdqn(nn.Module):
         self.l3 = nn.Linear(self.input_d, ((self.output_d + 1) * self.output_d)//2) # linear
 
     def forward(self, input_, action=None):
+
+        # Value Function
         V = torch.relu(self.v1(input_))
         V = self.vN1(V)
         V = torch.relu(self.v2(V))
         V = self.vN2(V)
         V = self.v3(V)
 
+        # Action Function
         MU = torch.relu(self.mu1(input_))
         MU = self.muN1(MU)
         MU = torch.relu(self.mu2(MU))
@@ -93,6 +96,7 @@ class NAFdqn(nn.Module):
         MU = MU.unsqueeze(-1)
         L = self.l3(input_)
 
+        # Calculate P
         Lmatrix = torch.zeros((input_.shape[0], self.output_d, self.output_d))#.to(device)
         indices = torch.tril_indices(row=self.output_d, col=self.output_d, offset=0)
         Lmatrix[:, indices[0], indices[1]] = L
@@ -101,6 +105,7 @@ class NAFdqn(nn.Module):
 
         Q = None
 
+        # Calculate Q
         if action is not None:
             sub_action_MU = action.unsqueeze(-1) - MU
             mul_a_MU_P = torch.matmul(sub_action_MU.transpose(2, 1), P)
@@ -109,6 +114,7 @@ class NAFdqn(nn.Module):
             Q = A + V
 
         if not IS_TEST:
+            # add noise to given action
             noise = np.random.normal(loc=0, scale=sigma, size=2)
             idx = np.random.randint(MU.shape[0])
             action = MU.cpu().squeeze().detach().numpy()[idx] + noise

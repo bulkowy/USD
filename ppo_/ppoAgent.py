@@ -125,28 +125,6 @@ class Agent(object):
 
         self.optimizer = torch.optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
 
-    # def save_model(self, path, episode):
-    #     params = {
-    #         "actor_critic": self.actor_critic.state_dict(),
-    #         "opt": self.optimizer.state_dict()
-    #     }
-    #     os.makedirs(path, exist_ok=True)
-
-    #     path = os.path.join(path, + "_ep_" + str(episode) + ".pt")
-    #     torch.save(params, path)
-    #     print('saved model!')
-
-    # def load_model(self, path):
-    #     if not os.path.exists(path):
-    #         raise Exception(
-    #             f"[ERROR] the input path does not exist. Wrong path: {path}"
-    #         )
-
-    #     params = torch.load(path)
-    #     self.actor_critic.load_state_dict(params["actor_critic"])
-    #     self.optimizer(params["opt"])
-    #     print('loaded model!')
-
     def update(self, rollouts):
         advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]
         advantages = (advantages - advantages.mean()) / (
@@ -172,19 +150,23 @@ class Agent(object):
 
                 ratio = torch.exp(action_log_probs -
                                   old_action_log_probs_batch)
+                # surrogate functions
                 surr1 = ratio * adv_targ
                 surr2 = torch.clamp(ratio, 1.0 - self.clip_param,
                                     1.0 + self.clip_param) * adv_targ
                 action_loss = -torch.min(surr1, surr2).mean()
 
+                # predicted value clipping
                 value_pred_clipped = value_preds_batch + \
                     (values - value_preds_batch).clamp(-self.clip_param, self.clip_param)
+                # calculate value loss
                 value_losses = (values - return_batch).pow(2)
                 value_losses_clipped = (
                     value_pred_clipped - return_batch).pow(2)
                 value_loss = 0.5 * torch.max(value_losses,
                                                 value_losses_clipped).mean()
 
+                # update weights
                 self.optimizer.zero_grad()
                 (value_loss * self.value_loss_coef + action_loss -
                  dist_entropy * self.entropy_coef).backward()

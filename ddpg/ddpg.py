@@ -11,7 +11,7 @@ from memory import ReplayBuffer
 from mujoco_py import GlfwContext
 import cv2
 
-OFFSCREEN = True
+OFFSCREEN = False
 
 if OFFSCREEN:
     GlfwContext(offscreen=True)
@@ -195,11 +195,15 @@ class DDPG:
         
 
         for self.i_episode in range(1, self.episode_num + 1):
-            if OFFSCREEN:
-                if self.i_episode % 20 == 0:
-                    VideoWriter = cv2.VideoWriter(self.env_name + str(self.i_episode//20) + ".avi", fourcc, 50.0, (250, 250))
+            if OFFSCREEN and self.render:
+                if self.tuning:
+                    fn = f'{self.env_name}-{self.lr}-{self.weight_decay}-{self.gamma}-{self.batch_size}'
+                else:
+                    fn = f'{self.env_name}'
+                if self.i_episode % 200 == 0:
+                    VideoWriter = cv2.VideoWriter(fn + str(self.i_episode//20) + ".avi", fourcc, 50.0, (250, 250))
                 elif self.i_episode == self.episode_num:
-                    VideoWriter = cv2.VideoWriter(self.env_name + "final.avi", fourcc, 50.0, (250, 250))
+                    VideoWriter = cv2.VideoWriter(fn + "final.avi", fourcc, 50.0, (250, 250))
         
             state = self.env.reset()
             done = False
@@ -311,8 +315,8 @@ class DDPG:
             step = 0
 
             while not done:
-                if self.render:
-                    self.env.render()
+                #if self.render:
+                #    self.env.render()
 
                 action = self.select_action(state)
                 next_state, reward, done, _ = self.step(action)
